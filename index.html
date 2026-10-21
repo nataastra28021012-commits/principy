@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Конструктор территорий</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    :root {
+      --ink: #000;
+      --muted: #000;
+      --paper: #f8f7f1;
+      --line: #d9dfd8;
+      --green: #237a57;
+      --green-dark: #16533b;
+      --mint: #dff3df;
+      --yellow: #f5ca58;
+      --coral: #e66c55;
+      --white: #fffefa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: 'Inter', sans-serif;
+      font-size: 18px;
+      background: #fff;
+    }
+    .app { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 46px 0 36px; }
+    .eyebrow { margin: 0 0 12px; color: var(--ink); font-size: 18px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    h1 { max-width: 730px; margin: 0; font-size: 20px; line-height: 1.2; letter-spacing: -.02em; }
+    .lead { max-width: 670px; margin: 18px 0 32px; color: var(--muted); font-size: 18px; line-height: 1.55; }
+    .workspace { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: 570px; overflow: hidden; border: 1px solid var(--line); border-radius: 28px; background: var(--white); box-shadow: 0 24px 70px rgba(27, 72, 51, .11); }
+    .workspace:not(.opened) { grid-template-columns: 1fr; min-height: auto; }
+    .controls { padding: 22px; border-right: 1px solid var(--line); background: #fcfdf9; }
+    .workspace:not(.opened) .controls { border-right: 0; }
+    .workspace:not(.opened) .map-panel { display: none; }
+    .workspace.no-map { min-height: auto; }
+    .workspace.no-map .map-panel { display: block; }
+    .workspace.no-map .map { display: none; }
+    .controls h2 { margin: 6px 0 4px; font-size: 20px; letter-spacing: -.02em; }
+    .hint { margin: 0 0 18px; color: var(--muted); font-size: 18px; line-height: 1.45; }
+    .hint.hidden { display: none; }
+    .step-list { display: grid; gap: 9px; }
+    .step {
+      width: 100%; display: grid; grid-template-columns: 34px 1fr 20px; gap: 10px; align-items: center;
+      padding: 14px 12px; border: 1px solid transparent; border-radius: 15px; cursor: pointer;
+      color: var(--ink); text-align: left; font: inherit; background: transparent; transition: .18s ease;
+    }
+    .step:hover { background: #f0f7ef; }
+    .step:focus-visible { outline: 3px solid #6ea985; outline-offset: 2px; }
+    .step.active { border-color: #abd2b9; background: var(--mint); }
+    .num { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; color: #000; font-size: 18px; font-weight: 800; background: #e8efe8; }
+    .active .num { color: #000; background: var(--green); }
+    .step-title { font-size: 18px; font-weight: 750; line-height: 1.25; }
+    .arrow { font-size: 20px; color: #000; opacity: 0; transform: translateX(-5px); transition: .18s ease; }
+    .active .arrow { opacity: 1; transform: translateX(0); }
+    .map-panel { display: grid; grid-template-rows: auto minmax(340px, 1fr); min-width: 0; }
+    .map { position: relative; min-height: 380px; overflow: hidden; background: #e8f1e3; }
+    svg { position: relative; width: 100%; height: 100%; min-height: 380px; display: block; }
+    .road { fill: none; stroke: #fffdf6; stroke-width: 19; stroke-linecap: round; }
+    .road-edge { fill: none; stroke: #c6d1c4; stroke-width: 22; stroke-linecap: round; }
+    .rail { fill: none; stroke: #71838a; stroke-width: 7; stroke-dasharray: 2 10; stroke-linecap: round; }
+    .territory { fill: #74b98b; fill-opacity: .38; stroke: var(--green-dark); stroke-width: 3.5; stroke-linejoin: round; transition: .3s ease; }
+    .territory.secondary { fill: #f2c550; stroke: #a56b17; }
+    .building { fill: #d57a5a; stroke: #fff9ef; stroke-width: 3; }
+    .map-label { font: 700 18px 'Inter', sans-serif; fill: #000; text-anchor: middle; }
+    .annotation { font: 700 18px 'Inter', sans-serif; fill: #000; text-anchor: middle; }
+    .example { opacity: 0; transform-origin: center; transition: opacity .22s ease; pointer-events: none; }
+    .example.visible { opacity: 1; }
+    .map-caption { padding: 22px 26px 25px; background: var(--white); }
+    .caption-label { margin: 1px 0 6px; color: var(--ink); font-size: 16px; font-weight: 400; letter-spacing: .05em; text-transform: uppercase; }
+    .map-caption h2 { margin: 0 0 7px; font-size: 20px; line-height: 1.25; letter-spacing: -.025em; }
+    .map-caption p { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.52; }
+    .caption-text { color: var(--muted); font-size: 18px; line-height: 1.52; }
+    .caption-text p { margin: 0 0 14px; }
+    .caption-text p:last-child { margin-bottom: 0; }
+    .caption-text strong { color: var(--ink); }
+    .caption-text ul { margin: 0 0 14px; padding-left: 24px; }
+    .caption-text li { margin: 0 0 10px; }
+    .caption-text li:last-child { margin-bottom: 0; }
+    .tip { display: flex; gap: 10px; align-items: center; margin-top: 22px; padding: 13px 16px; border-radius: 13px; color: #000; font-size: 18px; background: #edf6eb; }
+    .tip strong { color: #000; }
+    @media (max-width: 760px) {
+      .app { width: min(100% - 20px, 600px); padding-top: 24px; }
+      .workspace { grid-template-columns: 1fr; border-radius: 20px; }
+      .controls { border-right: 0; border-bottom: 1px solid var(--line); }
+      .step-list { grid-template-columns: 1fr 1fr; }
+      .step { grid-template-columns: 32px 1fr; padding: 10px; }
+      .step-title { font-size: 18px; }
+      .arrow { display: none; }
+      .map { min-height: 330px; }
+      svg { min-height: 330px; }
+    }
+    @media (max-width: 430px) { .step-list { grid-template-columns: 1fr; } .lead { font-size: 18px; } }
+    @media (prefers-reduced-motion: reduce) { .step, .arrow, .example, .territory { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="workspace" id="workspace" aria-label="Интерактивная схема принципов создания территорий">
+      <aside class="controls">
+        <p class="hint">Нажми на каждый принцип, чтобы узнать подробнее.</p>
+        <div class="step-list" role="tablist" aria-label="Принципы">
+          <button class="step" type="button" role="tab" aria-selected="false" aria-controls="detail" data-step="1"><span class="num">1</span><span class="step-title">Один человеко-день</span><span class="arrow">→</span></button>
+          <button class="step" type="button" role="tab" aria-selected="false" aria-controls="detail" data-step="2"><span class="num">2</span><span class="step-title">Замкнутый контур</span><span class="arrow">→</span></button>
+          <button class="step" type="button" role="tab" aria-selected="false" aria-controls="detail" data-step="3"><span class="num">3</span><span class="step-title">Без пересечений<br>с другими</span><span class="arrow">→</span></button>
+          <button class="step" type="button" role="tab" aria-selected="false" aria-controls="detail" data-step="4"><span class="num">4</span><span class="step-title">Без самопересечений</span><span class="arrow">→</span></button>
+          <button class="step" type="button" role="tab" aria-selected="false" aria-controls="detail" data-step="5"><span class="num">5</span><span class="step-title">Отдельные территории</span><span class="arrow">→</span></button>
+        </div>
+      </aside>
+
+      <div class="map-panel">
+        <section class="map-caption" id="detail" aria-live="polite">
+          <h2 id="caption-title">Рекомендуемый размер территории — один человеко-день</h2><div class="caption-text" id="caption-text">Один человеко-день примерно равен шести часам, потому что из стандартного восьмичасового рабочего дня вычитается время на дорогу до территории. Также в документации могут встречаться термины «один рабочий день выверки» и «один SP (story point)» — они означают то же самое.</div>
+        </section>
+        <div class="map" aria-label="Схема территории">
+          <svg viewBox="0 0 740 410" role="img" aria-label="Условная схема территорий, дорог и зданий">
+            <rect width="740" height="410" fill="#e8f1e3"/>
+            <path d="M-20 95 C130 68 225 128 350 98 S570 58 760 116" fill="none" stroke="#c5d0c3" stroke-width="23"/><path d="M-20 95 C130 68 225 128 350 98 S570 58 760 116" fill="none" stroke="#fffdf6" stroke-width="17"/>
+            <path d="M130 -20 C152 85 108 158 157 231 S227 334 307 430" fill="none" stroke="#c5d0c3" stroke-width="23"/><path d="M130 -20 C152 85 108 158 157 231 S227 334 307 430" fill="none" stroke="#fffdf6" stroke-width="17"/>
+            <path class="rail" d="M730 -10 C708 92 736 160 719 236 S732 334 752 420"/>
+            <path id="main-territory" class="territory" d="M220 170 L360 162 L455 190 L463 285 L372 335 L245 290 L192 225 Z"/>
+            <path id="second-territory" class="territory secondary" d="M515 180 L635 160 L681 259 L565 296 L500 269 L505 215 Z"/>
+            <g id="buildings"><rect class="building" x="268" y="202" width="31" height="25" rx="3"/><rect class="building" x="323" y="180" width="43" height="33" rx="3"/><rect class="building" x="390" y="230" width="36" height="27" rx="3"/><rect class="building" x="288" y="259" width="44" height="30" rx="3"/><rect class="building" x="415" y="269" width="26" height="21" rx="3"/></g>
+            <text class="map-label" x="335" y="244">Территория</text>
+            <g id="note-1" class="example"><path d="M230 344 Q335 378 440 343" fill="none" stroke="#237a57" stroke-width="3"/><text class="map-label" x="350" y="385">≈ 6 часов работы</text></g>
+            <g id="note-2" class="example"><path d="M220 170 L360 162 L455 190 L463 285 L372 335 L245 290 L192 225 Z" fill="none" stroke="#f5ca58" stroke-width="9" stroke-linejoin="round"/><text class="map-label" x="345" y="145">границы по дорогам</text></g>
+            <g id="note-3" class="example"><path d="M463 248 L500 245" stroke="#e66c55" stroke-width="8" stroke-linecap="round"/><text class="annotation" x="481" y="220">без наложений</text></g>
+            <g id="note-4" class="example"><path d="M284 190 L420 280 M420 190 L284 280" stroke="#e66c55" stroke-width="7" stroke-linecap="round"/><text class="annotation" x="352" y="145">не пересекать внутри</text></g>
+            <g id="note-5" class="example"><path d="M515 180 L635 160 L681 259 L565 296 L500 269 L505 215 Z" fill="none" stroke="#237a57" stroke-width="8" stroke-linejoin="round"/></g>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const content = {
+      1: { title: 'Рекомендуемый размер территории — один человеко-день', html: '<p>Один человеко-день примерно равен шести часам, потому что из стандартного восьмичасового рабочего дня вычитается время на дорогу до территории.</p><p>Также в документации могут встречаться термины «один рабочий день выверки»<br>и «один SP (story point)» — они означают то же самое.</p>', label: 'Принцип 1' },
+      2: { title: 'Территория должна быть замкнутой', text: 'Контур территории должен быть замкнут и ограничен дорогами или естественными границами: например, железнодорожными путями или оврагами.', label: 'Принцип 2' },
+      3: { title: 'Территории не пересекаются', html: '<p>Между соседними территориями не должно быть наложений.<br>Так одно и то же здание не окажется сразу в двух территориях.</p>', label: 'Принцип 3' },
+      4: { title: 'Контур не пересекает сам себя', html: '<p>Границы одной территории не должны пересекаться между собой.<br>Иначе автоматический расчёт количества организаций будет невозможен.</p>', label: 'Принцип 4' },
+      5: { title: 'Отдельные территории выделяются:', html: '<ul><li>для участков с частой сменой организаций, чтобы сосредоточить выверку<br>на ключевых местах;</li><li>для крупных торговых и бизнес-центров, особенно с поэтажными планами.</li></ul><p><strong>Но иногда существующие территории могут не полностью соответствовать описанным выше принципам. Например:</strong></p><ul><li>на выверку одной территории тратится слишком много времени<br>(она большая по площади или на ней много организаций);</li><li>появляются новые строения, которые не входят ни в одну из прежних территорий, отчего остаются невыверенными;</li><li>граница территории пересекает здание, поэтому на такое здание некорректно формируются задачи.</li></ul><p><strong>При необходимости ты можешь самостоятельно менять границы территорий.</strong></p>', label: 'Принцип 5' }
+    };
+    const workspace = document.querySelector('#workspace');
+    const buttons = document.querySelectorAll('.step');
+    const examples = document.querySelectorAll('.example');
+    const hint = document.querySelector('.hint');
+    const title = document.querySelector('#caption-title');
+    const text = document.querySelector('#caption-text');
+    function select(step) {
+      workspace.classList.add('opened');
+      workspace.classList.toggle('no-map', step === '5');
+      hint.classList.add('hidden');
+      const item = content[step];
+      buttons.forEach(button => { const active = button.dataset.step === step; button.classList.toggle('active', active); button.setAttribute('aria-selected', active); });
+      examples.forEach(example => example.classList.remove('visible'));
+      document.querySelector('#note-' + step).classList.add('visible');
+      title.textContent = item.title;
+      text.innerHTML = item.html || item.text;
+    }
+    buttons.forEach(button => button.addEventListener('click', () => select(button.dataset.step)));
+  </script>
+</body>
+</html>
